@@ -282,6 +282,20 @@ if [[ -n "${RAY_ADDRESS}" ]]; then
   RAY+=(ray_kwargs.ray_init.address="${RAY_ADDRESS}")
 fi
 
+if [[ -z "${VERL_TASK_RUNNER_NODE_ID:-}" ]]; then
+  VERL_TASK_RUNNER_NODE_ID="$(
+    "${PYTHON_BIN}" -c 'import os, ray
+addr = os.environ.get("RAY_ADDRESS") or "auto"
+ray.init(address=addr, ignore_reinit_error=True, logging_level="ERROR")
+nodes = [n for n in ray.nodes() if n.get("Alive") and (n.get("Resources") or {}).get("GPU", 0) > 0]
+if not nodes:
+    raise SystemExit("no alive GPU Ray nodes found for TaskRunner pin")
+print(nodes[0]["NodeID"])
+ray.shutdown()' 2>/tmp/verl_task_runner_node.err
+  )"
+  export VERL_TASK_RUNNER_NODE_ID
+fi
+
 ############################ Launch ############################
 
 echo "============================================================"
@@ -297,6 +311,7 @@ echo "  Rollout: dump -> ${ROLLOUT_DATA_DIR}"
 echo "  TB:      ${TENSORBOARD_DIR}"
 echo "  Python:  ${PYTHON_BIN}"
 echo "  Ray:     ${RAY_ADDRESS:-local/default}"
+echo "  Driver:  ${VERL_TASK_RUNNER_NODE_ID}"
 echo "============================================================"
 
 "${PYTHON_BIN}" -m verl.experimental.fully_async_policy.fully_async_main \

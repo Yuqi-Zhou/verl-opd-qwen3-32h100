@@ -84,6 +84,16 @@ def run_ppo(config, task_runner_class=None) -> None:
 
     # Create a remote instance of the TaskRunner class, and
     # Execute the `run` method of the TaskRunner instance remotely and wait for it to complete
+    task_runner_options = {}
+    task_runner_node_id = os.environ.get("VERL_TASK_RUNNER_NODE_ID")
+    if task_runner_node_id:
+        from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
+
+        print(f"Pinning TaskRunner to Ray node {task_runner_node_id}")
+        task_runner_options["scheduling_strategy"] = NodeAffinitySchedulingStrategy(
+            node_id=task_runner_node_id, soft=False
+        )
+
     if (
         is_cuda_available
         and config.global_profiler.tool == "nsys"
@@ -96,9 +106,9 @@ def run_ppo(config, task_runner_class=None) -> None:
         nsight_options = OmegaConf.to_container(
             config.global_profiler.global_tool_config.nsys.controller_nsight_options
         )
-        runner = task_runner_class.options(runtime_env={"nsight": nsight_options}).remote()
-    else:
-        runner = task_runner_class.remote()
+        task_runner_options["runtime_env"] = {"nsight": nsight_options}
+
+    runner = task_runner_class.options(**task_runner_options).remote()
     ray.get(runner.run.remote(config))
 
     # [Optional] get the path of the timeline trace file from the configuration, default to None
