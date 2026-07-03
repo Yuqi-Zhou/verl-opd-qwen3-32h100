@@ -279,7 +279,7 @@ ASYNC=(
 
 RAY=()
 if [[ -n "${RAY_ADDRESS}" ]]; then
-  RAY+=(ray_kwargs.ray_init.address="${RAY_ADDRESS}")
+  RAY+=(+ray_kwargs.ray_init.address="${RAY_ADDRESS}")
 fi
 
 if [[ -z "${VERL_TASK_RUNNER_NODE_ID:-}" ]]; then
